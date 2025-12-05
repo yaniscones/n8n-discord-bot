@@ -10,6 +10,7 @@ const client = new Client({
 });
 
 const N8N_WEBHOOK = 'https://n8n.ycautomation.online/webhook/forum';
+// Regex stricte : ne capture que ce qui contient ";local-xxxx"
 const LOCAL_ID_REGEX = /;local-[a-zA-Z0-9]+/;
 
 client.on('threadCreate', async (thread) => {
@@ -28,8 +29,9 @@ client.on('threadCreate', async (thread) => {
       thread_id: thread.id,
       url: thread.url
     });
+    console.log(`✅ [TICKET] Nouveau post capturé : ${thread.name}`);
   } catch (error) {
-    console.error(error.message);
+    console.error(`❌ Erreur lors de la capture du thread : ${error.message}`);
   }
 });
 
@@ -54,15 +56,15 @@ client.on('messageCreate', async (message) => {
         url: message.url,
         attachment_url: hasAttachment ? message.attachments.first().url : null
       });
-      console.log(`Update sent for: ${message.author.username}`);
+      console.log(`🎯 [UPDATE] ID local ou Image détecté de : ${message.author.username}`);
     }
   } catch (error) {
-    console.error(error.message);
+    console.error(`❌ Erreur lors de la mise à jour : ${error.message}`);
   }
 });
 
 client.once('ready', () => {
-  console.log(`Bot ready: ${client.user.tag}`);
+  console.log(`🤖 Bot connecté et prêt à l'action : ${client.user.tag}`);
 });
 
 const token = process.env.DISCORD_TOKEN;
