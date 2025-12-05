@@ -9,7 +9,7 @@ const client = new Client({
   ]
 });
 
-const N8N_WEBHOOK = https://n8n.ycautomation.online/webhook/forum';
+const N8N_WEBHOOK = 'https://n8n.ycautomation.online/webhook/forum';
 
 client.on('threadCreate', async (thread) => {
   try {
@@ -49,4 +49,5 @@ client.once('ready', () => {
 });
 
 const token = process.env.DISCORD_TOKEN;
+
 client.login(token);
