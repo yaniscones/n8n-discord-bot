@@ -9,7 +9,7 @@ const client = new Client({
   ]
 });
 
-const N8N_WEBHOOK = 'https://n8n.ycautomation.online/webhook/forum';
+const N8N_WEBHOOK = process.env.N8N_WEBHOOK_URL;
 const LOCAL_ID_REGEX = /;local-[a-zA-Z0-9]+/;
 
 client.on('threadCreate', async (thread) => {
@@ -72,3 +72,4 @@ client.once('ready', () => {
 
 const token = process.env.DISCORD_TOKEN;
 client.login(token);
+
