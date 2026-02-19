@@ -1,75 +1,46 @@
 const { Client, GatewayIntentBits } = require('discord.js');
 const axios = require('axios');
 
+const TARGET_CHANNEL_ID = "1379835906160201728"; // ID du bug-report
+const N8N_WEBHOOK = process.env.N8N_WEBHOOK_URL;
+
 const client = new Client({
   intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.Guilds
   ]
 });
 
-const N8N_WEBHOOK = process.env.N8N_WEBHOOK_URL;
-const LOCAL_ID_REGEX = /;local-[a-zA-Z0-9]+/;
-
 client.on('threadCreate', async (thread) => {
+
+  // 🔒 On ne prend que les threads du channel bug-report
+  if (!thread.parent || thread.parent.id !== TARGET_CHANNEL_ID) return;
+
   try {
+    // petite attente pour que le message starter soit dispo
     await new Promise(resolve => setTimeout(resolve, 1000));
+
     const firstMessage = await thread.fetchStarterMessage();
     if (!firstMessage) return;
 
-    const hasAttachment = firstMessage.attachments.size > 0;
-    const attachmentUrl = hasAttachment ? firstMessage.attachments.first().url : null;
-
     await axios.post(N8N_WEBHOOK, {
-      type: 'NOUVEAU_TICKET',
+      type: 'NOUVEAU_BUG',
       titre: thread.name,
       contenu: firstMessage.content,
-      source: `Discord Forum - #${thread.parent ? thread.parent.name : 'Forum'}`,
-      de: firstMessage.author.username,
+      auteur: firstMessage.author.username,
       date: thread.createdAt.toISOString(),
       thread_id: thread.id,
-      url: thread.url,
-      attachment_url: attachmentUrl
+      url: thread.url
     });
-    console.log(`✅ [TICKET] Nouveau post capturé : ${thread.name}`);
+
+    console.log(`✅ Nouveau bug capturé : ${thread.name}`);
+
   } catch (error) {
-    console.error(`❌ Erreur lors de la capture du thread : ${error.message}`);
-  }
-});
-
-client.on('messageCreate', async (message) => {
-  if (message.author.bot || !message.channel.isThread()) return;
-
-  try {
-    if (message.id === message.channel.id) return;
-
-    const content = message.content;
-    const matchLocal = LOCAL_ID_REGEX.test(content);
-    const hasAttachment = message.attachments.size > 0;
-
-    if (matchLocal || hasAttachment) {
-      await axios.post(N8N_WEBHOOK, {
-        type: 'REPONSE_ID',
-        titre: `Mise à jour ID - ${message.channel.name}`,
-        contenu: content,
-        source: `Discord Forum`,
-        de: message.author.username,
-        thread_id: message.channel.id,
-        url: message.url,
-        attachment_url: hasAttachment ? message.attachments.first().url : null
-      });
-      console.log(`🎯 [UPDATE] ID local ou Image détecté de : ${message.author.username}`);
-    }
-  } catch (error) {
-    console.error(`❌ Erreur lors de la mise à jour : ${error.message}`);
+    console.error(`❌ Erreur : ${error.message}`);
   }
 });
 
 client.once('ready', () => {
-  console.log(`🤖 Bot connecté et prêt à l'action : ${client.user.tag}`);
+  console.log(`🤖 Connecté : ${client.user.tag}`);
 });
 
-const token = process.env.DISCORD_TOKEN;
-client.login(token);
-
+client.login(process.env.DISCORD_TOKEN);
