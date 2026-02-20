@@ -25,6 +25,7 @@ client.on('threadCreate', async (thread) => {
       titre: thread.name,
       contenu: firstMessage.content,
       auteur: firstMessage.author.username,
+      nom_salon: thread.parent.name,
       date: thread.createdAt.toISOString(),
       thread_id: thread.id,
       url: thread.url
@@ -42,4 +43,5 @@ client.once('ready', () => {
 });
 
 client.login(process.env.DISCORD_TOKEN);
+
 
