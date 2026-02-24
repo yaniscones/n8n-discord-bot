@@ -7,8 +7,10 @@
     "start": "node index.js"
   },
   "dependencies": {
+    "app-store-scraper": "^0.18.0",
     "axios": "^1.6.0",
-    "discord.js": "^14.14.0"
+    "discord.js": "^14.14.0",
+    "google-play-scraper": "^9.4.1"
   },
   "engines": {
     "node": ">=18.0.0"
