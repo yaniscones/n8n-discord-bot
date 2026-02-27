@@ -20,9 +20,7 @@ const client = new Client({
 
 client.on('threadCreate', async (thread) => {
   if (!thread.parent || thread.parent.id !== TARGET_CHANNEL_ID) return;
-
-  console.log(`✅ Nouveau Thread dans ${thread.parent.name} : ${thread.name}`);
-
+  console.log(`✅ Nouveau Thread Discord : ${thread.name}`);
   try {
     let firstMessage = null;
     for (let i = 0; i < 3; i++) {
@@ -30,9 +28,7 @@ client.on('threadCreate', async (thread) => {
       firstMessage = await thread.fetchStarterMessage().catch(() => null);
       if (firstMessage) break;
     }
-
     if (!firstMessage) return;
-
     await axios.post(N8N_WEBHOOK, {
       type: 'NOUVEAU_BUG',
       titre: thread.name,
@@ -43,57 +39,76 @@ client.on('threadCreate', async (thread) => {
       thread_id: thread.id,
       url: thread.url
     });
-
   } catch (error) {
-    console.error(`Erreur Discord : ${error.message}`);
+    console.error(`❌ Erreur Discord : ${error.message}`);
   }
 });
 
 async function checkStores() {
+    console.log(`🔍 [${new Date().toLocaleTimeString()}] Vérification des avis Play Store & App Store...`);
     try {
+        // --- Google Play Store ---
         const playReviews = await gplay.reviews({
             appId: STORES_CONFIG.playStoreId,
             sort: gplay.sort.NEWEST,
-            num: 1
+            num: 5 // On en prend 5 au cas où plusieurs tombent en même temps
         });
-        const lastPlay = playReviews.data[0];
-        if (lastPlay && lastPlay.id !== lastStoreIds.play) {
-            if (lastStoreIds.play) await sendReviewToN8n('Play Store', lastPlay.userName, lastPlay.text, `Avis ${lastPlay.score}⭐ - Google Play`, lastPlay.url);
-            lastStoreIds.play = lastPlay.id;
+
+        if (playReviews.data && playReviews.data.length > 0) {
+            const reviews = playReviews.data.reverse(); // Du plus vieux au plus récent
+            for (const review of reviews) {
+                if (lastStoreIds.play && review.id !== lastStoreIds.play) {
+                    await sendReviewToN8n('Play Store', review.userName, review.text, `Avis ${review.score}⭐ - Google Play`, review.url);
+                }
+                lastStoreIds.play = review.id;
+            }
         }
 
+        // --- App Store ---
         const appleReviews = await appStore.reviews({
             id: STORES_CONFIG.appStoreId,
             sort: appStore.sort.RECENT,
             page: 1
         });
-        const lastApple = appleReviews[0];
-        if (lastApple && lastApple.id !== lastStoreIds.apple) {
-            if (lastStoreIds.apple) await sendReviewToN8n('App Store', lastApple.userName, lastApple.text, lastApple.title, `https://apps.apple.com/app/id${STORES_CONFIG.appStoreId}`);
-            lastStoreIds.apple = lastApple.id;
+
+        if (appleReviews && appleReviews.length > 0) {
+            const aReviews = appleReviews.reverse();
+            for (const review of aReviews) {
+                if (lastStoreIds.apple && review.id !== lastStoreIds.apple) {
+                    await sendReviewToN8n('App Store', review.userName, review.text, review.title, `https://apps.apple.com/app/id${STORES_CONFIG.appStoreId}`);
+                }
+                lastStoreIds.apple = review.id;
+            }
         }
+        console.log("✨ Vérification terminée. Tout est à jour.");
     } catch (err) {
-        console.error("❌ Erreur Stores :", err.message);
+        console.error("❌ Erreur lors du scan des stores :", err.message);
     }
 }
 
 async function sendReviewToN8n(source, auteur, contenu, titre, url) {
-    console.log(`📥 Nouveau retour sur ${source} : ${titre}`);
-    await axios.post(N8N_WEBHOOK, {
-        type: 'STORE_REVIEW',
-        nom_salon: source,
-        auteur: auteur,
-        contenu: contenu,
-        titre: titre,
-        url: url,
-        date: new Date().toISOString()
-    });
+    console.log(`📥 NOUVEAU RETOUR détecté sur ${source} ! Envoi à n8n...`);
+    try {
+        await axios.post(N8N_WEBHOOK, {
+            type: 'STORE_REVIEW',
+            nom_salon: source,
+            auteur: auteur,
+            contenu: contenu,
+            titre: titre,
+            url: url,
+            date: new Date().toISOString()
+        });
+    } catch (e) {
+        console.error(`❌ Échec de l'envoi à n8n : ${e.message}`);
+    }
 }
 
 client.once('ready', () => {
-  console.log(`🤖 Connecté : ${client.user.tag}`);
+  console.log(`🤖 Bot prêt et connecté : ${client.user.tag}`);
+  // Lancer la première vérification immédiatement
+  checkStores();
+  // Puis toutes les 30 minutes
   setInterval(checkStores, 30 * 60 * 1000);
-  checkStores(); 
 });
 
 client.login(DISCORD_TOKEN);
